@@ -1,0 +1,72 @@
+#X7飞控支持和机载电脑使用type-c转USB数据线连接，此文件用于检查二者通讯
+
+#方法1
+
+# 连接后查看设备
+ls /dev/ttyACM*
+
+# 应该看到类似输出
+/dev/ttyACM0
+
+#添加权限
+sudo usermod -aG dialout $USER
+# 重新登录生效
+
+# 1. 创建并编辑Python文件
+nano test_mavlink.py
+
+# 2. 在nano中输入以下代码（复制粘贴即可）
+from pymavlink import mavutil
+import time
+
+# 连接飞控（Type-C方式）
+master = mavutil.mavlink_connection('/dev/ttyACM0', baud=115200)
+
+print("正在等待飞控心跳包...")
+
+# 等待心跳包
+master.wait_heartbeat()
+print("✓ 已连接到飞控系统！")
+print(f"系统ID: {master.target_system}, 组件ID: {master.target_component}")
+
+# 循环读取姿态数据
+print("\n开始读取姿态数据（按Ctrl+C退出）:\n")
+while True:
+    try:
+        msg = master.recv_match(type='ATTITUDE', blocking=True, timeout=1)
+        if msg:
+            roll = msg.roll * 57.3   # 弧度转角度
+            pitch = msg.pitch * 57.3
+            yaw = msg.yaw * 57.3
+            print(f"横滚: {roll:7.2f}° | 俯仰: {pitch:7.2f}° | 偏航: {yaw:7.2f}°")
+    except KeyboardInterrupt:
+        print("\n程序已退出")
+
+# 3. 保存退出
+# 按 Ctrl+O 回车保存
+# 按 Ctrl+X 退出
+
+# 4. 运行Python文件
+python3 test_mavlink.py
+    break
+
+#方法2
+
+# 查看USB设备列表
+lsusb
+
+# 查看USB串口设备
+ls -l /dev/ttyACM*
+
+# 查看所有串口设备
+ls -l /dev/tty*
+#正常输出示例
+crw-rw---- 1 root dialout 166, 0 Mar 8 10:00 /dev/ttyACM0
+# 安装minicom
+sudo apt update
+sudo apt install minicom -y
+
+# 连接串口查看原始数据
+sudo minicom -D /dev/ttyACM0 -b 115200
+
+#有乱码输出证明连接正常
